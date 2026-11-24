@@ -77,17 +77,19 @@ function markBeat(n){beat[n]=1;try{localStorage.setItem('md_beat',JSON.stringify
 function lvlBtns(){const a=[];for(const n of[1,2,3])if(beat[n])a.push({n,label:'Level '+n});if(beat[3])a.push({n:'b',label:'Bonus level'});const w=210,gp=14,tot=a.length*w+(a.length-1)*gp;a.forEach((b,i)=>{b.x=W/2-tot/2+i*(w+gp);b.y=690;b.w=w;b.h=56});return a}
 let bgAlt=false,slideReq=false,paused=false,menu=true,shotQ=0,P,enemies,bullets,pickups,pops,blood,spits,score,over,won,overT,overWhy,spawnT,legT,spiT,hintT,introT,levelT,bossIntro,stopped,lastM,wp,sbSpawned,shake,ring,bonusMode=false,bonusOver=false,wave=0,waveT=0,sbP=0,spawnQ=[],lvl=1,last;
 const net={role:null,on:false,live:false,ui:null,code:'',input:'',msg:'',peer:null,conn:null,acc:0,note:'',noteT:0};
-let P2=null,evq=[],eid=0,gById=new Map();
-addEventListener('keydown',e=>{keys[e.code]=true;resumeAudio();
+let P2=null,evq=[],eid=0,gById=new Map(),inter=false,rdy=[false,false],rdyGo=false;
+const chat={open:false,txt:'',log:[]};
+addEventListener('keydown',e=>{if(chatKey(e))return;keys[e.code]=true;resumeAudio();
   if(e.code==='Space'||e.code==='Tab'||e.code.startsWith('Arrow'))e.preventDefault();
   if(e.ctrlKey)e.preventDefault();
   if(menu){if(net.ui){netKey(e);return}if(e.code==='Enter')startGame();return}
   if(e.code==='KeyC'&&!e.repeat&&!paused)slideReq=true;
-  if(bonusMode&&!over&&!won&&!bonusOver&&!paused&&!e.repeat){const k=e.code.replace('Numpad','Digit'),nw=k==='Digit1'?'saw':k==='Digit2'?'sg':k==='Digit3'?'ar':null;if(k==='Digit9'&&wave<50&&net.role!=='guest'){enemies=[];spawnQ=[];spits=[];wave=49;waveT=1}
+  if(bonusMode&&!over&&!won&&!bonusOver&&!paused&&!e.repeat){const k=e.code.replace('Numpad','Digit'),nw=k==='Digit1'?'saw':k==='Digit2'?'sg':k==='Digit3'?'ar':null;if(k==='Digit9'&&wave<50&&net.role!=='guest'){enemies=[];spawnQ=[];spits=[];wave=49;waveT=1;inter=false;rdyGo=true}
   if(nw&&nw!==wp){wp=nw;P.ammo=20;P.rel=0;shotQ=0;stopAR();stopSaw();sawHold=false}}
   if(e.code==='Tab'&&!e.repeat&&!over&&!won&&!bonusOver){paused=!paused;mouse.down=false;dragVol=false;stopAR();stopSaw()}
   if((e.code==='Digit0'||e.code==='Numpad0')&&!e.repeat&&!over&&!won&&!paused&&!bonusMode)endWin();
   if(e.code==='KeyR'&&(over||won)){clickSnd();reset(won&&lvl===MAXL?1:lvl)}
+  if(e.code==='KeyR'&&!e.repeat&&inter&&net.live&&!bonusOver&&!paused){clickSnd();if(net.role==='host')rdy[0]=!rdy[0];else{rdy[1]=!rdy[1];netSend({k:'rdy'})}}
   if(e.code==='KeyR'&&bonusOver&&net.role!=='guest'){clickSnd();startBonus()}
   if(bonusOver&&overT>0.5&&(e.code==='Enter'||e.code==='KeyY')){clickSnd();if(net.on)toMenu();else toEndScreen()}
   if(won&&overT>0.5&&(e.code==='Enter'||e.code==='KeyY')){clickSnd();if(lvl===MAXL)toMenu();else reset(nextLvl())}});
@@ -133,7 +135,7 @@ function startBonus(){lvl=MAXL;TOP=800;slideReq=false;paused=false;shotQ=0;stopA
   const gst=net.role==='guest';P=mkP(gst?1300:600,900);P2=net.on?mkP(gst?600:1300,900):null;
   enemies=[];bullets=[];pickups=[];pops=[];blood=[];spits=[];score=0;over=false;won=false;overT=0;overWhy='dead';
   spawnT=0.5;legT=999;spiT=999;hintT=8;introT=2.6;levelT=0;bossIntro=0;stopped=true;lastM=null;sbSpawned=true;shake=0;ring=null;mouse.down=false;
-  bonusMode=true;bonusOver=false;wave=0;waveT=0;sbP=0;spawnQ=[];setMusic('r3');if(net.on){net.live=true;net.acc=0;if(net.role==='host')netSend({k:'start'})}}
+  bonusMode=true;bonusOver=false;wave=0;waveT=0;sbP=0;spawnQ=[];inter=false;rdy=[false,false];rdyGo=false;setMusic('r3');if(net.on){net.live=true;net.acc=0;if(net.role==='host')netSend({k:'start'})}}
 function addHellLegs(){const l=Math.random()<0.5;for(let i=0;i<3;i++){enemies.push({t:'leg',x:l?-60-i*70:W+60+i*70,y:TOP+30+Math.random()*(BOT-TOP-30),hp:1,cd:0.5,lunge:0,hit:0,face:1,bob:Math.random()*6,hell:true});play(rnd(['st1','st2']),0.9,i*0.1)}}
 function addHellSpiN(l,n){for(let i=0;i<n;i++){enemies.push({t:'spi',x:l?-50-i*45:W+50+i*45,y:TOP+20+Math.random()*(BOT-TOP-20),hp:2,cd:0.3,lunge:0,hit:0,face:1,bob:Math.random()*6,state:'chase',ct:0,ang:0,dir:1,lz:0,lcd:1+Math.random()*2,hell:true});play('spider',0.5,i*0.08)}}
 function addHellSpiders(){const l=Math.random()<0.5;for(let i=0;i<5;i++){enemies.push({t:'spi',x:l?-50-i*45:W+50+i*45,y:TOP+20+Math.random()*(BOT-TOP-20),hp:2,cd:0.3,lunge:0,hit:0,face:1,bob:Math.random()*6,state:'chase',ct:0,ang:0,dir:1,lz:0,lcd:1+Math.random()*2,hell:true});play('spider',0.5,i*0.12)}}
@@ -333,9 +335,11 @@ function update(dt){
   if(bonusMode){
     if(spawnQ.length){for(const q of spawnQ)q.t-=dt;const rd=spawnQ.filter(q=>q.t<=0);spawnQ=spawnQ.filter(q=>q.t>0);for(const q of rd)q.f()}
     if(enemies.length===0&&spawnQ.length===0){
-      waveT-=dt;
-      if(waveT<=0){
-        wave++;introT=2.6;setMusic('r3');
+      if(P2&&wave>=1&&!inter&&!rdyGo){inter=true;rdy=[false,false]}
+      if(inter){if(P.dead)rdy[0]=true;if(P2&&P2.dead)rdy[1]=true;if(!P2||(rdy[0]&&rdy[1])){inter=false;rdyGo=true;waveT=1.5;play('click')}}
+      else waveT-=dt;
+      if(!inter&&waveT<=0){
+        rdyGo=false;wave++;introT=2.6;setMusic('r3');
         const sf=P2?1.5:1,total=Math.min(Math.ceil((3+wave)*sf),Math.round(16*sf)),mix=Math.random()<0.5?'leg':'mel',bigN=Math.max(1,Math.round(total*0.5)),rest=Math.max(1,total-bigN);
         const Q=f=>spawnQ.push({t:0.1+Math.random()*1.9,f});
         for(let i=0;i<bigN;i++)Q(addHellBig);
@@ -510,6 +514,7 @@ function draw(){
   if(introT>0&&!over&&!won&&!bonusOver){g.globalAlpha=Math.min(1,introT);g.fillStyle=bonusMode?'#ff5a3c':'#fff';g.font=fnt('700',110);g.textAlign='center';g.fillText(bonusMode?'Wave '+wave:'Level '+lvl,W/2,330);g.font=fnt('500',40);g.fillStyle='#fff';g.fillText(bonusMode?'Hellish enemies. No time limit \u2014 survive as long as you can.':(lvl===3?'Spiders, Kryptoids and Foot/Steppers incoming. Survive.':lvl===2?'Melteds incoming. The boss arrives with 30 seconds left.':'Survive 90 seconds. Kryptoids and Foot/Steppers incoming.'),W/2,390);g.globalAlpha=1}
   if(bossIntro>0&&!over&&!won){g.globalAlpha=Math.min(1,bossIntro);g.fillStyle='#ff6a5a';g.font=fnt('700',110);g.textAlign='center';g.fillText('Boss incoming',W/2,330);g.font=fnt('500',40);g.fillStyle='#fff';g.fillText(bonusMode?'Survive.':lvl===3?'The pistol is gone. Take the chainsaw.':'Kill it before time runs out.',W/2,390);g.globalAlpha=1}
   if(over){g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';g.font=fnt('700',96);g.fillText(overWhy==='time'?'Time ran out':'You went down',W/2,H/2-10);g.font=fnt('500',40);g.fillText((overWhy==='time'?'The boss is still alive.':lvl===3&&sbSpawned?'The boss got you.':'You lasted '+Math.floor(levelT)+' seconds.')+' Click or press R to retry level '+lvl+'.',W/2,H/2+60)}
+  drawReady();
   if(bonusOver)drawBonusOver();
   else if(won&&lvl===MAXL)drawEnd();
   else if(won){g.fillStyle='rgba(0,0,0,.65)';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';g.font=fnt('700',96);g.fillText('Level '+lvl+' complete',W/2,H/2-60);g.font=fnt('500',40);
@@ -623,7 +628,7 @@ function nearP(e){let b=P,bd=1e18;for(const Q of PL()){if(Q.dead)continue;const 
 function netSend(o){try{if(net.conn&&net.conn.open)net.conn.send(o)}catch(e){}}
 function netNote(s){net.note=s;net.noteT=5}
 function netClose(){const c=net.conn,p=net.peer;net.conn=null;net.peer=null;try{c&&c.close()}catch(e){}try{p&&p.destroy()}catch(e){}
-  net.role=null;net.on=false;net.live=false;net.ui=null;net.input='';net.code='';P2=null;evq=[];gById=new Map()}
+  net.role=null;net.on=false;net.live=false;net.ui=null;net.input='';net.code='';P2=null;chat.open=false;chat.txt='';chat.log=[];inter=false;evq=[];gById=new Map()}
 function netFail(msg){netClose();net.ui='err';net.msg=msg}
 function loadPeer(cb){if(window.Peer)return cb(true);let i=0;
   const t=()=>{if(i>=PEER_URLS.length)return cb(false);const sc2=document.createElement('script');sc2.src=PEER_URLS[i++];sc2.onload=()=>window.Peer?cb(true):t();sc2.onerror=t;document.head.appendChild(sc2)};t()}
@@ -683,6 +688,8 @@ function netClick(){
     else if(net.ui==='ready'&&net.role==='host')startCoop()}}
 function startCoop(){clickSnd();stopMusic();menu=false;net.ui=null;paused=false;startBonus()}
 function netRecvHost(m){
+  if(m&&m.k==='chat'&&typeof m.t==='string'){chatAdd('P2',m.t.slice(0,80));play('click',1,0,1,true);return}
+  if(m&&m.k==='rdy'){if(inter)rdy[1]=!rdy[1];return}
   if(!m||m.k!=='in'||!P2||!net.live)return;
   const n=v=>(typeof v==='number'&&isFinite(v))?v:0;
   P2.x=Math.max(0,Math.min(W,n(m.x)));P2.y=Math.max(TOP,Math.min(BOT+20,n(m.y)));P2.z=Math.max(0,Math.min(700,n(m.z)));
@@ -690,6 +697,7 @@ function netRecvHost(m){
   if((m.w==='saw'||m.w==='sg'||m.w==='ar')&&m.w!==P2.wpn){P2.wpn=m.w;P2.ammo=20;P2.rel=0;P2.sq=0}}
 function netRecvGuest(m){
   if(!m)return;
+  if(m.k==='chat'&&typeof m.t==='string'){chatAdd('P1',m.t.slice(0,80));play('click',1,0,1,true);return}
   if(m.k==='start'){if(menu){menu=false;stopMusic()}net.ui=null;paused=false;gById=new Map();startBonus()}
   else if(m.k==='s'&&net.live&&!menu)applySnap(m)}
 function packP(Q){return PK.map(k=>r2(Q[k])).concat([Q===P?wp:Q.wpn])}
@@ -701,7 +709,7 @@ function snapshot(){
     bu:bullets.map(b=>[r2(b.x),r2(b.y),r2(b.vx),r2(b.vy),r2(b.life),b.d]),
     u:pickups.map(p=>[p.t,r2(p.x),r2(p.y),r2(p.b)]),
     sp:spits.map(q=>[r2(q.x),r2(q.y),r2(q.vx),r2(q.vy),q.miss?1:0]),
-    w:wave,sc:score,it:r2(introT),bi:r2(bossIntro),sh:r2(shake),rg:ring?[ring.x,ring.y,ring.t]:null,ev:evq};
+    w:wave,sc:score,iv:inter?1:0,rd:[rdy[0]?1:0,rdy[1]?1:0],it:r2(introT),bi:r2(bossIntro),sh:r2(shake),rg:ring?[ring.x,ring.y,ring.t]:null,ev:evq};
   evq=[];return m}
 function applySnap(m){
   unpackP(P2,m.a,true);unpackP(P,m.b,false);
@@ -716,7 +724,7 @@ function applySnap(m){
   bullets=(m.bu||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],life:a[4],d:a[5]}));
   pickups=(m.u||[]).map(a=>({t:a[0],x:a[1],y:a[2],b:a[3]}));
   spits=(m.sp||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],life:1,miss:!!a[4]}));
-  wave=m.w;score=m.sc;introT=m.it;bossIntro=m.bi;if(m.sh>shake)shake=m.sh;
+  wave=m.w;score=m.sc;inter=!!m.iv;if(m.rd)rdy=[!!m.rd[0],!!m.rd[1]];introT=m.it;bossIntro=m.bi;if(m.sh>shake)shake=m.sh;
   if(m.rg&&!ring)ring={x:m.rg[0],y:m.rg[1],t:m.rg[2]};
   for(const v of m.ev||[])applyEv(v)}
 function applyEv(v){
@@ -743,6 +751,7 @@ function guestUpdate(dt){
   for(const t of pops){t.life-=dt;t.y-=40*dt}pops=pops.filter(t=>t.life>0)}
 function netTick(dt){
   if(net.noteT>0)net.noteT-=dt;
+  for(const c of chat.log)c.life-=dt;chat.log=chat.log.filter(c=>c.life>0);
   if(!net.live||!net.on)return;
   net.acc+=dt;
   if(net.role==='host'){if(net.acc>=0.05){net.acc=0;netSend(snapshot())}}
@@ -769,11 +778,38 @@ function drawNetUI(){
   else if(u==='err'){title('Could not connect');sub(net.msg,440,'#ff9a8a');cancel='OK'}
   btn(BTN.nCancel,cancel,false)}
 
+function chatAdd(who,t){chat.log.push({who,t,life:12});if(chat.log.length>6)chat.log.shift()}
+function chatKey(e){
+  if(!chat.open){if(e.code==='KeyT'&&!e.repeat&&net.live&&!menu){e.preventDefault();chat.open=true;chat.txt='';for(const k in keys)keys[k]=false;mouse.down=false;stopAR();return true}return false}
+  e.preventDefault();
+  if(e.code==='Escape')chat.open=false;
+  else if(e.code==='Enter'||e.code==='NumpadEnter'){const t=chat.txt.trim();if(t){chatAdd(net.role==='guest'?'P2':'P1',t);netSend({k:'chat',t})}chat.open=false}
+  else if(e.code==='Backspace')chat.txt=chat.txt.slice(0,-1);
+  else if(e.key&&e.key.length===1&&chat.txt.length<80)chat.txt+=e.key;
+  return true}
+function drawChat(){
+  if(!net.live)return;
+  g.textAlign='left';g.font=fnt('600',28);
+  let y=H-(chat.open?120:90);
+  for(let i=chat.log.length-1;i>=0;i--){const c=chat.log[i];g.globalAlpha=Math.min(1,c.life/2);const tx=c.who+': '+c.t,tw=g.measureText(tx).width;
+    g.fillStyle='rgba(0,0,0,.55)';g.fillRect(32,y-30,tw+24,40);g.fillStyle=c.who==='P2'?'#ffd95a':'#8be08b';g.fillText(tx,44,y);y-=46}
+  g.globalAlpha=1;
+  if(chat.open){const tx='Say: '+chat.txt+(Math.floor(performance.now()/400)%2?'_':' ');g.fillStyle='rgba(0,0,0,.75)';g.fillRect(32,H-96,Math.max(520,g.measureText(tx).width+24),44);g.strokeStyle='#d8d2c0';g.lineWidth=2;g.strokeRect(32,H-96,Math.max(520,g.measureText(tx).width+24),44);g.fillStyle='#fff';g.fillText(tx,44,H-64);
+    g.font=fnt('500',22);g.fillStyle='rgba(255,255,255,.7)';g.fillText('Enter to send   Esc to cancel',44,H-26)}
+  else{g.font=fnt('500',24);g.fillStyle='rgba(255,255,255,.6)';g.fillText('Press T to chat',44,H-40)}}
+function drawReady(){
+  if(!inter||bonusOver||!net.live)return;
+  const me=net.role==='guest'?1:0;
+  g.fillStyle='rgba(0,0,0,.6)';g.fillRect(W/2-440,250,880,290);g.strokeStyle='rgba(255,90,60,.8)';g.lineWidth=3;g.strokeRect(W/2-440,250,880,290);
+  g.textAlign='center';g.font=fnt('700',80);g.fillStyle='#ff5a3c';g.fillText('Wave '+wave+' cleared',W/2,340);
+  g.font=fnt('600',40);
+  for(let i=0;i<2;i++){g.fillStyle=rdy[i]?'#8be08b':'#ff7a6a';g.fillText('P'+(i+1)+(i===me?' (you)':'')+':  '+(rdy[i]?'Ready':'Not ready'),W/2,400+i*50)}
+  g.font=fnt('500',32);g.fillStyle='#fff';g.fillText(rdy[me]?'You are ready. Press R to unready.':'Press R to ready up',W/2,515)}
 /* ---------- main loop ---------- */
 function loop(t){
   const dt=Math.min(0.05,(t-last)/1000);last=t;
   g.setTransform(RW/W,0,0,RH/H,0,0);
-  if(menu)drawMenu(t);else{if(!paused||net.live){if(net.role==='guest'&&net.live)guestUpdate(dt);else update(dt)}draw();if(paused)drawPause()}
+  if(menu)drawMenu(t);else{if(!paused||net.live){if(net.role==='guest'&&net.live)guestUpdate(dt);else update(dt)}draw();if(paused)drawPause();drawChat()}
   netTick(dt);
   cv.style.cursor=menu?'default':'crosshair';
   postFX(t);requestAnimationFrame(loop)}
